@@ -1,0 +1,43 @@
+{
+  "name": "chrome-no-focus-relay",
+  "version": "0.1.0",
+  "description": "Stop agent-browser and other CDP clients from stealing focus: a Chrome DevTools Protocol relay that keeps tabs in the background and blocks bringToFront",
+  "keywords": [
+    "agent-browser",
+    "vercel-labs",
+    "chrome-devtools-protocol",
+    "cdp",
+    "chrome",
+    "focus",
+    "steal-focus",
+    "bringToFront",
+    "background-tab",
+    "macos",
+    "browser-automation",
+    "ai-agent",
+    "claude-code",
+    "chrome-devtools-mcp"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anthonylau/chrome-no-focus-relay.git"
+  },
+  "type": "module",
+  "bin": {
+    "chrome-no-focus-relay": "relay.mjs"
+  },
+  "files": [
+    "relay.mjs"
+  ],
+  "scripts": {
+    "start": "node relay.mjs",
+    "test": "sh test/smoke.sh"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

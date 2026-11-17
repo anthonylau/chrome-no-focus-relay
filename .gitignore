@@ -1,0 +1,10 @@
+node_modules/
+.DS_Store
+*.log
+.claude/
+.env
+.env.*
+.npmrc
+*.pem
+*.key
+agent-chrome-profile/
