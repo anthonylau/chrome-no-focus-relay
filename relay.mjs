@@ -21,7 +21,13 @@ import { WebSocketServer, WebSocket } from 'ws';
 const args = process.argv.slice(2);
 function arg(name, fallback) {
   const i = args.indexOf(name);
-  return i >= 0 && args[i + 1] ? args[i + 1] : fallback;
+  if (i < 0) return fallback;
+  const value = args[i + 1];
+  if (value === undefined || value.startsWith('--')) {
+    console.error(`${name} needs a value`);
+    process.exit(2);
+  }
+  return value;
 }
 const VERBOSE = args.includes('--verbose');
 const [LISTEN_HOST, LISTEN_PORT] = splitHostPort(arg('--listen', process.env.RELAY_LISTEN ?? '127.0.0.1:9223'));
@@ -196,6 +202,15 @@ function bridge(client, path) {
   upstream.on('error', (e) => { console.error(`relay: upstream ${path}: ${e.message}`); closeBoth(); });
   client.on('error', closeBoth);
 }
+
+server.on('error', (e) => {
+  if (e.code === 'EADDRINUSE') {
+    console.error(`relay: ${LISTEN_HOST}:${LISTEN_PORT} is already in use. Another relay may be running, or pass --listen <host:port>.`);
+  } else {
+    console.error(`relay: cannot listen on ${LISTEN_HOST}:${LISTEN_PORT}: ${e.message}`);
+  }
+  process.exit(1);
+});
 
 server.listen(LISTEN_PORT, LISTEN_HOST, () => {
   console.log(`relay: listening on ${LISTEN_HOST}:${LISTEN_PORT}, Chrome at ${UPSTREAM} (${UPSTREAM_NAME}), focus emulation: ${FOCUS_EMULATION}`);
