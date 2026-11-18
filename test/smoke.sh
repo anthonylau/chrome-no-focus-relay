@@ -14,31 +14,46 @@ WORK=$(mktemp -d)
 
 [ -n "$CHROME" ] || { echo "no chromium found, set CHROME"; exit 2; }
 
+CHROME_PID=
+RELAY_PID=
+
 cleanup() {
   agent-browser --session "$SESSION" close >/dev/null 2>&1 || true
-  kill "$RELAY_PID" "$CHROME_PID" 2>/dev/null || true
-  wait "$RELAY_PID" "$CHROME_PID" 2>/dev/null || true
+  for pid in $RELAY_PID $CHROME_PID; do kill "$pid" 2>/dev/null || true; done
+  wait 2>/dev/null || true
+  # Chrome's helper processes outlive the main one and keep writing to the
+  # profile; stop them and let them exit before removing it.
+  pkill -f -- "$WORK/" 2>/dev/null || true
+  for _ in $(seq 1 25); do
+    pgrep -f -- "$WORK/" >/dev/null || break
+    sleep 0.2
+  done
   rm -rf "$WORK"
 }
 trap cleanup EXIT
+
+# wait_for NAME PORT LOG: wait for a CDP endpoint, or fail and show its log.
+wait_for() {
+  for _ in $(seq 1 50); do
+    curl -sf "http://127.0.0.1:$2/json/version" >/dev/null && return 0
+    sleep 0.2
+  done
+  echo "$1 did not start on port $2"
+  echo "--- $3"; cat "$3"
+  exit 1
+}
 
 "$CHROME" --headless=new --no-sandbox --disable-gpu --no-first-run \
   --user-data-dir="$WORK/profile" --remote-debugging-port="$CHROME_PORT" \
   about:blank >"$WORK/chrome.log" 2>&1 &
 CHROME_PID=$!
 
-for _ in $(seq 1 50); do
-  curl -sf "http://127.0.0.1:$CHROME_PORT/json/version" >/dev/null && break
-  sleep 0.2
-done
+wait_for Chrome "$CHROME_PORT" "$WORK/chrome.log"
 
 node "$DIR/relay.mjs" --listen "127.0.0.1:$RELAY_PORT" \
   --upstream "127.0.0.1:$CHROME_PORT" --verbose >"$WORK/relay.log" 2>&1 &
 RELAY_PID=$!
-for _ in $(seq 1 50); do
-  curl -sf "http://127.0.0.1:$RELAY_PORT/json/version" >/dev/null && break
-  sleep 0.2
-done
+wait_for relay "$RELAY_PORT" "$WORK/relay.log"
 
 ab() { agent-browser --session "$SESSION" "$@"; }
 PAGE='data:text/html,<title>relay</title><button id="b" onclick="window.n=(window.n||0)+1">b</button>'
